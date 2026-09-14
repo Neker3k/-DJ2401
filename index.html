@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Расписание</title>
+<style>
+  :root{
+    --ink:#1B2430;
+    --ink-soft:#4A5568;
+    --paper:#EFEAE0;
+    --paper-raised:#F7F4EC;
+    --line:#C9BFA6;
+    --accent:#2F6F4E;
+    --accent-soft:#DCE7DE;
+    --flag:#A63D40;
+    --flag-soft:#F1DEDD;
+    --radius:2px;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Georgia","Times New Roman",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .sans{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+  }
+
+  /* ---------- Layout shell ---------- */
+  .app{
+    display:grid;
+    grid-template-columns:96px 1fr;
+    min-height:100vh;
+  }
+
+  /* ---------- Day tab rail ---------- */
+  .rail{
+    background:var(--ink);
+    padding:28px 0;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:2px;
+  }
+  .rail-title{
+    color:var(--paper);
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    letter-spacing:.04em;
+    padding:0 14px 22px;
+    opacity:.55;
+    line-height:1.4;
+  }
+  .tab{
+    border:none;
+    background:transparent;
+    color:#A9B2C0;
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    text-align:left;
+    padding:12px 14px;
+    cursor:pointer;
+    border-left:3px solid transparent;
+    transition:background .15s ease, color .15s ease;
+  }
+  .tab:hover{ background:rgba(255,255,255,.06); color:#E8EAF0; }
+  .tab.active{
+    background:var(--paper);
+    color:var(--ink);
+    border-left:3px solid var(--accent);
+    font-weight:700;
+  }
+  .tab .count{
+    display:block;
+    font-size:11px;
+    opacity:.6;
+    margin-top:2px;
+    font-weight:400;
+  }
+  .tab.today:not(.active)::after{
+    content:"";
+    display:inline-block;
+    width:5px;height:5px;
+    border-radius:50%;
+    background:var(--accent);
+    margin-left:6px;
+    vertical-align:middle;
+  }
+
+  /* ---------- Main ---------- */
+  main{
+    padding:36px 48px 80px;
+    max-width:760px;
+  }
+
+  header.top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:1px solid var(--line);
+    padding-bottom:16px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  h1{
+    font-size:30px;
+    margin:0;
+    font-weight:400;
+    letter-spacing:.01em;
+  }
+  .today-line{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+
+  .view-toggle{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:12px;
+    display:flex;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .view-toggle button{
+    border:none;
+    background:var(--paper-raised);
+    color:var(--ink-soft);
+    padding:7px 13px;
+    cursor:pointer;
+  }
+  .view-toggle button.active{
+    background:var(--ink);
+    color:var(--paper);
+  }
+
+  /* ---------- Day view: lesson list ---------- */
+  .lesson{
+    display:grid;
+    grid-template-columns:78px 1fr auto;
+    gap:16px;
+    align-items:start;
+    padding:16px 0;
+    border-top:1px solid var(--line);
+  }
+  .lesson:last-of-type{ border-bottom:1px solid var(--line); }
+  .lesson .time{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    color:var(--ink-soft);
+    padding-top:2px;
+  }
+  .lesson .time b{ display:block; color:var(--ink); font-size:14px; }
+  .lesson .subject{
+    font-size:18px;
+    line-height:1.3;
+  }
+  .lesson .meta{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .badge{
+    display:inline-block;
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:10.5px;
+    padding:2px 7px;
+    border-radius:var(--radius);
+    background:var(--accent-soft);
+    color:var(--accent);
+    margin-right:8px;
+    font-weight:600;
+  }
+  .lesson.now{
+    background:var(--paper-raised);
+    margin:0 -16px;
+    padding:16px;
+    border-top:1px solid var(--accent);
+  }
+  .lesson.now .time b{ color:var(--accent); }
+
+  .row-actions{
+    display:flex;
+    gap:6px;
+  }
+  .icon-btn{
+    border:1px solid var(--line);
+    background:var(--paper-raised);
+    color:var(--ink-soft);
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    padding:5px 9px;
+    border-radius:var(--radius);
+    cursor:pointer;
+  }
+  .icon-btn:hover{ border-color:var(--ink-soft); color:var(--ink); }
+
+  .empty{
+    padding:40px 0;
+    color:var(--ink-soft);
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:14px;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+
+  .add-row{
+    margin-top:20px;
+  }
+  .add-btn{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    background:none;
+    border:1px dashed var(--line);
+    color:var(--ink-soft);
+    padding:10px 16px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    width:100%;
+    text-align:left;
+  }
+  .add-btn:hover{ border-color:var(--accent); color:var(--accent); }
+
+  /* ---------- Week (print) view ---------- */
+  .week-grid{
+    width:100%;
+    border-collapse:collapse;
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:12px;
+  }
+  .week-grid th{
+    text-align:left;
+    font-weight:600;
+    padding:8px 10px;
+    border-bottom:1px solid var(--ink);
+    color:var(--ink-soft);
+    font-size:11px;
+  }
+  .week-grid td{
+    vertical-align:top;
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+  .week-grid td:last-child{ border-right:none; }
+  .week-grid .wentry{ margin-bottom:8px; }
+  .week-grid .wentry .t{ color:var(--ink-soft); font-size:11px; }
+  .week-grid .wentry .s{ font-family:"Iowan Old Style",Georgia,serif; font-size:13px; }
+
+  .room-link{
+    color:var(--accent);
+    text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .room-link:hover{ color:var(--ink); }
+
+  /* ---------- Form (inline, no modal chrome) ---------- */
+  .form-card{
+    border:1px solid var(--line);
+    background:var(--paper-raised);
+    padding:18px;
+    border-radius:var(--radius);
+    margin-top:16px;
+  }
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .form-grid .full{ grid-column:1 / -1; }
+  label{
+    display:block;
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-bottom:4px;
+  }
+  input, select{
+    width:100%;
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    padding:8px 9px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:#fff;
+    color:var(--ink);
+  }
+  input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .form-actions{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+  }
+  .btn{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    padding:9px 16px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    border:1px solid var(--ink);
+  }
+  .btn-primary{ background:var(--ink); color:var(--paper); }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); border-color:var(--line); }
+
+  footer{
+    margin-top:44px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .footer-actions{ display:flex; gap:10px; }
+  .link-btn{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:12px;
+    color:var(--ink-soft);
+    background:none;
+    border:none;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+  }
+  .status{
+    font-family:"Charter","Helvetica Neue",Arial,sans-serif;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .app{ grid-template-columns:1fr; }
+    .rail{
+      flex-direction:row;
+      overflow-x:auto;
+      padding:14px 10px;
+      gap:4px;
+    }
+    .rail-title{ display:none; }
+    .tab{ border-left:none; border-bottom:3px solid transparent; white-space:nowrap; }
+    .tab.active{ border-bottom:3px solid var(--accent); border-left:none; }
+    main{ padding:24px 18px 60px; }
+    .form-grid{ grid-template-columns:1fr; }
+  }
+
+  @media print{
+    .rail, .view-toggle, .row-actions, .add-row, footer, .form-card{ display:none !important; }
+    .day-view{ display:none !important; }
+    .week-view{ display:block !important; }
+    body{ background:#fff; }
+    main{ padding:0; max-width:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="rail" id="rail">
+    <div class="rail-title">РАСПИСАНИЕ<br>ЗАНЯТИЙ</div>
+  </nav>
+
+  <main>
+    <header class="top">
+      <div>
+        <h1>Расписание</h1>
+        <div class="today-line" id="todayLine"></div>
+      </div>
+      <div class="view-toggle">
+        <button id="btnDayView" class="active">День</button>
+        <button id="btnWeekView">Неделя</button>
+      </div>
+    </header>
+
+    <section class="day-view" id="dayView">
+      <div id="lessonList"></div>
+      <div class="add-row">
+        <button class="add-btn" id="addLessonBtn">+ добавить пару</button>
+      </div>
+      <div id="formSlot"></div>
+    </section>
+
+    <section class="week-view" id="weekView" style="display:none;">
+      <table class="week-grid" id="weekGrid"></table>
+    </section>
+
+    <footer>
+      <div class="footer-actions">
+        <button class="link-btn" id="exportBtn">экспорт .json</button>
+        <button class="link-btn" id="importBtn">импорт .json</button>
+        <button class="link-btn" id="printBtn">печать недели</button>
+      </div>
+      <div class="status" id="statusLine">сохраняется в этом браузере</div>
+    </footer>
+  </main>
+</div>
+
+<input type="file" id="importFile" accept="application/json" style="display:none">
+
+<script>
+(function(){
+  "use strict";
+
+  var DAYS = ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
+  var DAYS_SHORT = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  var TYPE_LABEL = { lecture:"Лекция", practice:"Практика", lab:"Лаб.", exam:"Экзамен", other:"Занятие" };
+  var STORAGE_KEY = "schedule.lessons.v1";
+  var MAP_URL = "https://yuujiso.github.io/aitumap/";
+
+  function roomLink(room){
+    // Кабинеты в Главном корпусе кликабельны — ведут на интерактивную карту.
+    if(!room) return "";
+    if(/главный корпус/i.test(room)){
+      return '<a class="room-link" href="' + MAP_URL + '" target="_blank" rel="noopener">' + escapeHtml(room) + "</a>";
+    }
+    return escapeHtml(room);
+  }
+
+  var todayIdx = (new Date().getDay() + 6) % 7; // 0 = Monday
+  var state = {
+    lessons: loadLessons(),
+    activeDay: todayIdx,
+    view: "day",
+    editingId: null
+  };
+
+  function loadLessons(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return seedData();
+  }
+
+  function seedData(){
+    // Загружено из расписания, которое вы прислали.
+    return [
+      {id:"m1", day:0, start:"13:05", end:"13:55", subject:"Мировая литература и публицистика", room:"C1.3.318P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"lecture"},
+      {id:"m2", day:0, start:"14:00", end:"14:50", subject:"Мировая литература и публицистика", room:"С1.1.366, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"m3", day:0, start:"15:00", end:"15:50", subject:"Мировая литература и публицистика", room:"С1.1.366, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"m4", day:0, start:"16:00", end:"16:50", subject:"Коммуникация и PR", room:"С1.2.249L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"m5", day:0, start:"18:00", end:"18:50", subject:"Предпринимательство", room:"С1.2.227P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"m6", day:0, start:"19:00", end:"19:50", subject:"Предпринимательство", room:"С1.2.227P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"m7", day:0, start:"18:00", end:"18:50", subject:"Тех. предпринимательство", room:"С1.1.261P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"m8", day:0, start:"19:00", end:"19:50", subject:"Тех. предпринимательство", room:"С1.1.261P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+
+      {id:"t1", day:1, start:"10:00", end:"10:50", subject:"Коммуникация и PR", room:"110Р, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"t2", day:1, start:"11:00", end:"11:50", subject:"Коммуникация и PR", room:"110Р, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"t3", day:1, start:"14:00", end:"14:50", subject:"Конвергентные технологии в журналистике", room:"С1.2.224P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"t4", day:1, start:"15:00", end:"15:50", subject:"Конвергентные технологии в журналистике", room:"С1.2.224P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+
+      {id:"w1", day:2, start:"14:00", end:"14:50", subject:"Коммуникация и PR", room:"С1.3.264L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"w2", day:2, start:"15:00", end:"15:50", subject:"Коммуникация и PR", room:"С1.3.264L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"w3", day:2, start:"16:00", end:"16:50", subject:"Методы и инструменты исследования", room:"С1.1.251L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"w4", day:2, start:"17:00", end:"17:50", subject:"Методы и инструменты исследования", room:"С1.1.251L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"w5", day:2, start:"18:00", end:"18:50", subject:"Компьютерная графика и видеоэффекты", room:"С1.3.232P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"w6", day:2, start:"19:00", end:"19:50", subject:"Предпринимательство", room:"С1.2.227P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"w7", day:2, start:"19:00", end:"19:50", subject:"Тех. предпринимательство", room:"С1.1.227P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+
+      {id:"th1", day:3, start:"12:00", end:"12:50", subject:"Тех. предпринимательство", room:"Teams онлайн (дома)", teacher:"", type:"practice"},
+      {id:"th2", day:3, start:"13:00", end:"13:50", subject:"Тех. предпринимательство", room:"Teams онлайн (дома)", teacher:"", type:"practice"},
+      {id:"th3", day:3, start:"18:00", end:"18:50", subject:"Компьютерная графика и видеоэффекты", room:"С1.1.349К, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"th4", day:3, start:"19:00", end:"19:50", subject:"Компьютерная графика и видеоэффекты", room:"С1.1.349К, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+
+      {id:"f1", day:4, start:"10:00", end:"10:50", subject:"Мировая литература и публицистика", room:"IEC-305, корпус МВЦ, просп. Мангилик Ел 53/1", teacher:"", type:"lecture"},
+      {id:"f2", day:4, start:"11:00", end:"11:50", subject:"Мировая литература и публицистика", room:"IEC-305, корпус МВЦ, просп. Мангилик Ел 53/1", teacher:"", type:"lecture"},
+      {id:"f3", day:4, start:"13:05", end:"13:55", subject:"Конвергентные технологии в журналистике", room:"С1.1.223P, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"f4", day:4, start:"14:00", end:"14:50", subject:"Предпринимательство", room:"С1.1.334L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+      {id:"f5", day:4, start:"15:00", end:"15:50", subject:"Предпринимательство", room:"С1.1.334L, Главный корпус, просп. Мангилик Ел 55/11, блок С1", teacher:"", type:"practice"},
+
+      {id:"sa1", day:5, start:"12:00", end:"12:50", subject:"Компьютерная графика и видеоэффекты", room:"303L, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"sa2", day:5, start:"13:05", end:"13:55", subject:"Компьютерная графика и видеоэффекты", room:"303L, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"sa3", day:5, start:"14:00", end:"14:50", subject:"Конвергентные технологии в журналистике", room:"103P, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"sa4", day:5, start:"15:00", end:"15:50", subject:"Конвергентные технологии в журналистике", room:"103P, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"sa5", day:5, start:"16:00", end:"16:50", subject:"Методы и инструменты исследования", room:"103P, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"sa6", day:5, start:"17:00", end:"17:50", subject:"Методы и инструменты исследования", room:"103P, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"lecture"},
+      {id:"sa7", day:5, start:"18:00", end:"18:50", subject:"Методы и инструменты исследования", room:"103P, корпус Коркем, ул. Туркестан 14а/1", teacher:"", type:"practice"}
+    ];
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.lessons));
+      setStatus("сохранено");
+    }catch(e){
+      setStatus("не удалось сохранить — освободите память браузера или используйте экспорт");
+    }
+  }
+
+  var statusTimer;
+  function setStatus(text){
+    var el = document.getElementById("statusLine");
+    el.textContent = text;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function(){ el.textContent = "сохраняется в этом браузере"; }, 2200);
+  }
+
+  function uid(){ return "l" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+  function toMinutes(t){
+    var parts = t.split(":");
+    return parseInt(parts[0],10)*60 + parseInt(parts[1],10);
+  }
+
+  function lessonsForDay(day){
+    return state.lessons
+      .filter(function(l){ return l.day === day; })
+      .sort(function(a,b){ return toMinutes(a.start) - toMinutes(b.start); });
+  }
+
+  function isNow(l){
+    if(state.activeDay !== todayIdx) return false;
+    var now = new Date();
+    var mins = now.getHours()*60 + now.getMinutes();
+    return mins >= toMinutes(l.start) && mins < toMinutes(l.end);
+  }
+
+  /* ---------- Rendering: rail ---------- */
+  function renderRail(){
+    var rail = document.getElementById("rail");
+    rail.querySelectorAll(".tab").forEach(function(t){ t.remove(); });
+    DAYS.forEach(function(name, idx){
+      var btn = document.createElement("button");
+      btn.className = "tab" + (idx === state.activeDay ? " active" : "") + (idx === todayIdx ? " today" : "");
+      var count = lessonsForDay(idx).length;
+      btn.innerHTML = DAYS_SHORT[idx] + '<span class="count">' + (count || "—") + '</span>';
+      btn.addEventListener("click", function(){
+        state.activeDay = idx;
+        state.editingId = null;
+        renderAll();
+      });
+      rail.appendChild(btn);
+    });
+  }
+
+  /* ---------- Rendering: day view ---------- */
+  function renderDayView(){
+    document.getElementById("todayLine").textContent =
+      DAYS[state.activeDay] + (state.activeDay === todayIdx ? " · сегодня" : "");
+
+    var list = document.getElementById("lessonList");
+    list.innerHTML = "";
+    var lessons = lessonsForDay(state.activeDay);
+
+    if(lessons.length === 0){
+      var empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "На " + DAYS[state.activeDay].toLowerCase() + " пока ничего не добавлено.";
+      list.appendChild(empty);
+      return;
+    }
+
+    lessons.forEach(function(l){
+      var row = document.createElement("div");
+      row.className = "lesson" + (isNow(l) ? " now" : "");
+
+      var time = document.createElement("div");
+      time.className = "time";
+      time.innerHTML = "<b>" + l.start + "</b>" + l.end;
+      row.appendChild(time);
+
+      var body = document.createElement("div");
+      var badge = '<span class="badge">' + (TYPE_LABEL[l.type] || TYPE_LABEL.other) + "</span>";
+      body.innerHTML =
+        '<div class="subject">' + badge + escapeHtml(l.subject) + "</div>" +
+        '<div class="meta">' + [roomLink(l.room), escapeHtml(l.teacher)].filter(Boolean).join(" · ") + "</div>";
+      row.appendChild(body);
+
+      var actions = document.createElement("div");
+      actions.className = "row-actions";
+      var editBtn = document.createElement("button");
+      editBtn.className = "icon-btn";
+      editBtn.textContent = "изменить";
+      editBtn.addEventListener("click", function(){ openForm(l.id); });
+      var delBtn = document.createElement("button");
+      delBtn.className = "icon-btn";
+      delBtn.textContent = "удалить";
+      delBtn.addEventListener("click", function(){
+        if(confirm('Удалить "' + l.subject + '"?')){
+          state.lessons = state.lessons.filter(function(x){ return x.id !== l.id; });
+          save();
+          renderAll();
+        }
+      });
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      row.appendChild(actions);
+
+      list.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s){
+    var div = document.createElement("div");
+    div.textContent = s || "";
+    return div.innerHTML;
+  }
+
+  /* ---------- Rendering: week / print view ---------- */
+  function renderWeekView(){
+    var table = document.getElementById("weekGrid");
+    var thead = "<thead><tr>" + DAYS.map(function(d){ return "<th>" + d + "</th>"; }).join("") + "</tr></thead>";
+    var maxRows = 0;
+    var perDay = DAYS.map(function(_, idx){
+      var l = lessonsForDay(idx);
+      if(l.length > maxRows) maxRows = l.length;
+      return l;
+    });
+
+    var bodyRows = "";
+    for(var r=0; r<Math.max(maxRows,1); r++){
+      bodyRows += "<tr>";
+      for(var d=0; d<7; d++){
+        var l = perDay[d][r];
+        if(l){
+          bodyRows += "<td><div class='wentry'><div class='t'>" + l.start + "–" + l.end + "</div>" +
+            "<div class='s'>" + escapeHtml(l.subject) + "</div>" +
+            (l.room || l.teacher ? "<div class='t'>" + [roomLink(l.room), escapeHtml(l.teacher)].filter(Boolean).join(" · ") + "</div>" : "") +
+            "</div></td>";
+        } else {
+          bodyRows += "<td></td>";
+        }
+      }
+      bodyRows += "</tr>";
+    }
+    table.innerHTML = thead + "<tbody>" + bodyRows + "</tbody>";
+  }
+
+  /* ---------- Form ---------- */
+  function openForm(id){
+    state.editingId = id || "new";
+    renderForm();
+  }
+  function closeForm(){
+    state.editingId = null;
+    document.getElementById("formSlot").innerHTML = "";
+  }
+
+  function renderForm(){
+    var slot = document.getElementById("formSlot");
+    if(!state.editingId){ slot.innerHTML = ""; return; }
+
+    var editing = state.editingId !== "new";
+    var l = editing ? state.lessons.find(function(x){ return x.id === state.editingId; }) : null;
+    var v = l || {day: state.activeDay, start:"09:00", end:"10:30", subject:"", room:"", teacher:"", type:"lecture"};
+
+    var dayOptions = DAYS.map(function(d, i){
+      return "<option value='" + i + "'" + (i === v.day ? " selected" : "") + ">" + d + "</option>";
+    }).join("");
+    var typeOptions = Object.keys(TYPE_LABEL).map(function(k){
+      return "<option value='" + k + "'" + (k === v.type ? " selected" : "") + ">" + TYPE_LABEL[k] + "</option>";
+    }).join("");
+
+    slot.innerHTML =
+      "<div class='form-card'>" +
+        "<div class='form-grid'>" +
+          "<div class='full'><label>Предмет</label><input id='f_subject' value=\"" + escapeAttr(v.subject) + "\" placeholder='Например: Матанализ'></div>" +
+          "<div><label>День</label><select id='f_day'>" + dayOptions + "</select></div>" +
+          "<div><label>Тип</label><select id='f_type'>" + typeOptions + "</select></div>" +
+          "<div><label>Начало</label><input id='f_start' type='time' value='" + v.start + "'></div>" +
+          "<div><label>Окончание</label><input id='f_end' type='time' value='" + v.end + "'></div>" +
+          "<div><label>Аудитория</label><input id='f_room' value=\"" + escapeAttr(v.room) + "\" placeholder='Например: 214'></div>" +
+          "<div><label>Преподаватель</label><input id='f_teacher' value=\"" + escapeAttr(v.teacher) + "\" placeholder='Необязательно'></div>" +
+        "</div>" +
+        "<div class='form-actions'>" +
+          "<button class='btn btn-primary' id='f_save'>Сохранить</button>" +
+          "<button class='btn btn-ghost' id='f_cancel'>Отмена</button>" +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("f_cancel").addEventListener("click", closeForm);
+    document.getElementById("f_save").addEventListener("click", function(){
+      var subject = document.getElementById("f_subject").value.trim();
+      if(!subject){ alert("Укажите название предмета"); return; }
+      var start = document.getElementById("f_start").value;
+      var end = document.getElementById("f_end").value;
+      if(end <= start){ alert("Время окончания должно быть позже начала"); return; }
+
+      var data = {
+        day: parseInt(document.getElementById("f_day").value, 10),
+        start: start,
+        end: end,
+        subject: subject,
+        room: document.getElementById("f_room").value.trim(),
+        teacher: document.getElementById("f_teacher").value.trim(),
+        type: document.getElementById("f_type").value
+      };
+
+      if(editing){
+        Object.assign(l, data);
+      } else {
+        data.id = uid();
+        state.lessons.push(data);
+      }
+      save();
+      state.activeDay = data.day;
+      closeForm();
+      renderAll();
+    });
+  }
+
+  function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
+
+  /* ---------- View toggle ---------- */
+  function setView(view){
+    state.view = view;
+    document.getElementById("btnDayView").classList.toggle("active", view === "day");
+    document.getElementById("btnWeekView").classList.toggle("active", view === "week");
+    document.getElementById("dayView").style.display = view === "day" ? "" : "none";
+    document.getElementById("weekView").style.display = view === "week" ? "" : "none";
+    if(view === "week") renderWeekView();
+  }
+
+  /* ---------- Export / import ---------- */
+  function exportJson(){
+    var blob = new Blob([JSON.stringify(state.lessons, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "schedule.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importJson(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(!Array.isArray(data)) throw new Error("bad format");
+        state.lessons = data;
+        save();
+        renderAll();
+      }catch(e){
+        alert("Не удалось прочитать файл. Проверьте, что это тот же .json, что был экспортирован отсюда.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ---------- Wire up ---------- */
+  document.getElementById("btnDayView").addEventListener("click", function(){ setView("day"); });
+  document.getElementById("btnWeekView").addEventListener("click", function(){ setView("week"); });
+  document.getElementById("addLessonBtn").addEventListener("click", function(){ openForm(null); });
+  document.getElementById("exportBtn").addEventListener("click", exportJson);
+  document.getElementById("printBtn").addEventListener("click", function(){ setView("week"); window.print(); });
+  document.getElementById("importBtn").addEventListener("click", function(){ document.getElementById("importFile").click(); });
+  document.getElementById("importFile").addEventListener("change", function(e){
+    if(e.target.files[0]) importJson(e.target.files[0]);
+    e.target.value = "";
+  });
+
+  function renderAll(){
+    renderRail();
+    renderDayView();
+    renderForm();
+    if(state.view === "week") renderWeekView();
+  }
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
